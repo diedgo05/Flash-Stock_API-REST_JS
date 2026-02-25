@@ -33,7 +33,7 @@ const authUser = async (req, res, next) => {
             });
         }
 
-        res.user = user;
+        req.user = user;
         next();
     } catch (error) {
         if (error.name === 'TokenExpiredError') {

@@ -103,3 +103,5 @@ const Offer = sequelize.define('Offer', {
         }
       }
     });
+
+    module.exports = Offer;
