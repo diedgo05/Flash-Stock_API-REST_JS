@@ -5,9 +5,14 @@ const cors = require('cors');
 const path = require('path');
 
 const { connectDB } = require('./config/database');
+const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 
 
 
+
+// Rutas
+const userAuthRoutes = require('./routes/userAuthRoutes');
+const storeAuthRoutes = require('./routes/storeAuthRoutes');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -15,6 +20,17 @@ const httpServer = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// ── Rutas de la API 
+app.use('/api/auth/users', userAuthRoutes);
+app.use('/api/auth/stores', storeAuthRoutes);
+
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 
