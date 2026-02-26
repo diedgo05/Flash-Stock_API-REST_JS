@@ -1,0 +1,545 @@
+{
+  "info": {
+    "name": "Flash-Stock API",
+    "description": "Colección completa para probar todos los endpoints de Flash-Stock.\n\n**Orden recomendado de prueba:**\n1. Categories → Crear categorías\n2. Auth Users → Registrar y hacer login de usuario\n3. Auth Stores → Registrar y hacer login de tienda\n4. Offers → Crear y consultar ofertas\n5. Purchases → Comprar y ver historial\n\n**Las variables TOKEN_USER y TOKEN_STORE se llenan automáticamente al hacer login.**",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost:3000", "type": "string" },
+    { "key": "TOKEN_USER", "value": "", "type": "string" },
+    { "key": "TOKEN_STORE", "value": "", "type": "string" },
+    { "key": "CATEGORY_ID", "value": "", "type": "string" },
+    { "key": "OFFER_ID", "value": "", "type": "string" },
+    { "key": "TICKET_CODE", "value": "", "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "🔥 Health Check",
+      "item": [
+        {
+          "name": "Servidor activo",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/health",
+            "description": "Verifica que el servidor esté corriendo. Debe responder { status: 'ok' }"
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📂 Categories",
+      "item": [
+        {
+          "name": "Crear categoría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success) {",
+                  "  pm.collectionVariables.set('CATEGORY_ID', res.data.category.id);",
+                  "  console.log('CATEGORY_ID guardado:', res.data.category.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/categories",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Panadería y Repostería\"\n}"
+            },
+            "description": "Crea una categoría. El ID se guarda automáticamente en CATEGORY_ID para usarlo al crear ofertas."
+          }
+        },
+        {
+          "name": "Listar categorías",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/categories",
+            "description": "Devuelve todas las categorías disponibles."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "👤 Auth — Usuarios",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/auth/users/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos\",\n  \"last_name\": \"Pérez\",\n  \"email\": \"carlos@gmail.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9611234567\"\n}"
+            },
+            "description": "Registra un nuevo usuario comprador. Devuelve el usuario creado y el JWT token."
+          }
+        },
+        {
+          "name": "Login usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data.token) {",
+                  "  pm.collectionVariables.set('TOKEN_USER', res.data.token);",
+                  "  console.log('TOKEN_USER guardado automáticamente');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/auth/users/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"carlos@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Inicia sesión. El token JWT se guarda automáticamente en TOKEN_USER."
+          }
+        },
+        {
+          "name": "Mi perfil (usuario)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/auth/users/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_USER}}" }],
+            "description": "Devuelve el perfil del usuario autenticado. Requiere TOKEN_USER."
+          }
+        },
+        {
+          "name": "❌ Login con contraseña incorrecta",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/auth/users/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"carlos@gmail.com\",\n  \"password\": \"contrasenawrong\"\n}"
+            },
+            "description": "Debe responder 401 con mensaje de error."
+          }
+        },
+        {
+          "name": "❌ Registrar con email duplicado",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/auth/users/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Otro\",\n  \"last_name\": \"Usuario\",\n  \"email\": \"carlos@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Debe responder 409 porque el email ya existe."
+          }
+        },
+        {
+          "name": "❌ Sin token (ruta protegida)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/auth/users/me",
+            "description": "Debe responder 401 porque no se envía el token."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🏪 Auth — Tiendas",
+      "item": [
+        {
+          "name": "Registrar tienda",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/auth/stores/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"store_name\": \"Panadería La Esperanza\",\n  \"email\": \"panaderia@gmail.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9619876543\",\n  \"address\": \"Av. Central #123, Col. Centro\",\n  \"city\": \"Tuxtla Gutiérrez\"\n}"
+            },
+            "description": "Registra una nueva tienda vendedora."
+          }
+        },
+        {
+          "name": "Login tienda",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data.token) {",
+                  "  pm.collectionVariables.set('TOKEN_STORE', res.data.token);",
+                  "  console.log('TOKEN_STORE guardado automáticamente');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/auth/stores/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"panaderia@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Inicia sesión como tienda. El token se guarda en TOKEN_STORE."
+          }
+        },
+        {
+          "name": "Mi perfil (tienda)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/auth/stores/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "Perfil de la tienda autenticada."
+          }
+        },
+        {
+          "name": "Actualizar perfil tienda",
+          "request": {
+            "method": "PATCH",
+            "url": "{{BASE_URL}}/api/auth/stores/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"store_name\": \"Panadería La Esperanza 2.0\",\n  \"phone\": \"9610000001\"\n}"
+            },
+            "description": "Actualiza campos del perfil de la tienda."
+          }
+        },
+        {
+          "name": "❌ Token de usuario en ruta de tienda",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/auth/stores/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_USER}}" }],
+            "description": "Debe responder 403. El token de usuario no sirve en rutas de tienda."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🎯 Offers",
+      "item": [
+        {
+          "name": "Crear oferta (tienda)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success) {",
+                  "  pm.collectionVariables.set('OFFER_ID', res.data.offer.id);",
+                  "  console.log('OFFER_ID guardado:', res.data.offer.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/offers",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Pastelitos de chocolate (10 piezas)", "type": "text" },
+                { "key": "description", "value": "Pastelitos recién horneados, perfectos para llevar", "type": "text" },
+                { "key": "category_id", "value": "{{CATEGORY_ID}}", "type": "text" },
+                { "key": "initial_price", "value": "200", "type": "text" },
+                { "key": "min_price", "value": "80", "type": "text" },
+                { "key": "stock", "value": "10", "type": "text" },
+                { "key": "start_time", "value": "2025-01-01T19:30:00.000Z", "type": "text", "description": "Cambia esta fecha a una hora futura real" },
+                { "key": "end_time", "value": "2025-01-01T20:30:00.000Z", "type": "text", "description": "1 hora después del start_time" }
+              ]
+            },
+            "description": "⚠️ IMPORTANTE: Cambia start_time y end_time a fechas futuras reales antes de enviar.\n\nUsa formdata (no JSON) porque soporta subida de imagen opcional.\n\nEl OFFER_ID se guarda automáticamente."
+          }
+        },
+        {
+          "name": "Crear oferta ACTIVA ahora mismo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success) {",
+                  "  pm.collectionVariables.set('OFFER_ID', res.data.offer.id);",
+                  "  console.log('OFFER_ID guardado:', res.data.offer.id);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Genera automáticamente start_time (ahora) y end_time (1 hora después)",
+                  "const now = new Date();",
+                  "const end = new Date(now.getTime() + 60 * 60 * 1000);",
+                  "pm.variables.set('START_NOW', now.toISOString());",
+                  "pm.variables.set('END_IN_1HR', end.toISOString());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/offers",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Conchas de vainilla (lote del día)", "type": "text" },
+                { "key": "description", "value": "Conchas horneadas esta mañana, precio baja cada minuto", "type": "text" },
+                { "key": "category_id", "value": "{{CATEGORY_ID}}", "type": "text" },
+                { "key": "initial_price", "value": "150", "type": "text" },
+                { "key": "min_price", "value": "50", "type": "text" },
+                { "key": "stock", "value": "5", "type": "text" },
+                { "key": "start_time", "value": "{{START_NOW}}", "type": "text" },
+                { "key": "end_time", "value": "{{END_IN_1HR}}", "type": "text" }
+              ]
+            },
+            "description": "Este request calcula automáticamente start_time = ahora y end_time = 1 hora después.\nLa oferta quedará ACTIVE inmediatamente y el timer de precios arrancará."
+          }
+        },
+        {
+          "name": "Ver ofertas activas (público)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/offers",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "offers"]
+            },
+            "description": "Lista todas las ofertas activas. No requiere token."
+          }
+        },
+        {
+          "name": "Ver ofertas activas por ciudad",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/offers?city=Tuxtla Gutiérrez",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "offers"],
+              "query": [{ "key": "city", "value": "Tuxtla Gutiérrez" }]
+            },
+            "description": "Filtra por ciudad. Útil para mostrar solo ofertas locales al usuario."
+          }
+        },
+        {
+          "name": "Ver ofertas activas por categoría",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/offers?category_id={{CATEGORY_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "offers"],
+              "query": [{ "key": "category_id", "value": "{{CATEGORY_ID}}" }]
+            },
+            "description": "Filtra por categoría."
+          }
+        },
+        {
+          "name": "Detalle de una oferta",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/offers/{{OFFER_ID}}",
+            "description": "Ver el detalle completo de una oferta. Incluye datos de la tienda y categoría."
+          }
+        },
+        {
+          "name": "Mis ofertas (tienda)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/offers/store/mine",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "La tienda ve todas sus propias ofertas (activas, expiradas, canceladas)."
+          }
+        },
+        {
+          "name": "Mis ofertas filtradas por status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/offers/store/mine?status=ACTIVE",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "offers", "store", "mine"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            },
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "Filtra por status: SCHEDULED, ACTIVE, SOLD_OUT, EXPIRED, CANCELLED"
+          }
+        },
+        {
+          "name": "Ver compras de una oferta (tienda)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/offers/{{OFFER_ID}}/purchases",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "La tienda ve quién compró una oferta específica en tiempo real."
+          }
+        },
+        {
+          "name": "Cancelar oferta",
+          "request": {
+            "method": "PATCH",
+            "url": "{{BASE_URL}}/api/offers/{{OFFER_ID}}/cancel",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "Cancela una oferta SCHEDULED o ACTIVE. Emite offer_ended por WebSocket a todos los viewers."
+          }
+        },
+        {
+          "name": "❌ Crear oferta sin token",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/offers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"name\": \"Test\" }",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Debe responder 401. Las ofertas solo las puede crear una tienda autenticada."
+          }
+        },
+        {
+          "name": "❌ Crear oferta con datos inválidos",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/offers",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "", "type": "text" },
+                { "key": "initial_price", "value": "-100", "type": "text" },
+                { "key": "min_price", "value": "500", "type": "text" },
+                { "key": "stock", "value": "0", "type": "text" }
+              ]
+            },
+            "description": "Debe responder 400 con lista de errores de validación."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🛒 Purchases",
+      "item": [
+        {
+          "name": "Comprar oferta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data.purchase.ticket_code) {",
+                  "  pm.collectionVariables.set('TICKET_CODE', res.data.purchase.ticket_code);",
+                  "  console.log('TICKET_CODE guardado:', res.data.purchase.ticket_code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/purchases",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN_USER}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offer_id\": \"{{OFFER_ID}}\",\n  \"quantity\": 1\n}"
+            },
+            "description": "El usuario compra una oferta activa. Devuelve el ticket_code que se guarda automáticamente.\n\n⚠️ La oferta debe estar en status ACTIVE para que funcione."
+          }
+        },
+        {
+          "name": "Mi historial de compras",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/purchases/my-history",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_USER}}" }],
+            "description": "El usuario ve todas sus compras pasadas con el detalle de la oferta y tienda."
+          }
+        },
+        {
+          "name": "Canjear ticket (tienda)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{BASE_URL}}/api/purchases/{{TICKET_CODE}}/redeem",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "La tienda ingresa el código del ticket y lo marca como canjeado (REDEEMED).\n\nEl TICKET_CODE se guarda automáticamente cuando el usuario compra."
+          }
+        },
+        {
+          "name": "❌ Canjear ticket ya canjeado",
+          "request": {
+            "method": "PATCH",
+            "url": "{{BASE_URL}}/api/purchases/{{TICKET_CODE}}/redeem",
+            "header": [{ "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" }],
+            "description": "Intenta canjear el mismo ticket dos veces. Debe responder 400."
+          }
+        },
+        {
+          "name": "❌ Comprar oferta agotada",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/purchases",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN_USER}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offer_id\": \"{{OFFER_ID}}\",\n  \"quantity\": 1\n}"
+            },
+            "description": "Si la oferta ya está SOLD_OUT o EXPIRED, debe responder 404 o 400."
+          }
+        },
+        {
+          "name": "❌ Comprar con token de tienda",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/purchases",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN_STORE}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offer_id\": \"{{OFFER_ID}}\",\n  \"quantity\": 1\n}"
+            },
+            "description": "Debe responder 403. Solo los usuarios pueden comprar, no las tiendas."
+          }
+        }
+      ]
+    }
+
+  ]
+}
