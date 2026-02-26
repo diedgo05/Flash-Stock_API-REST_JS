@@ -1,6 +1,9 @@
-const { sequelize, Purchase, Offer } = require('../models');
+const {sequelize} = require('../config/database')
+const { Purchase, Offer } = require('../models');
 const crypto = require('crypto');const { calculateCurrentPrice } = require('../services/priceEngine');
 const { getIO } = require('../config/socket');
+const { Transaction } = require('sequelize');
+
 
 // ── POST /api/purchases ───────────────────────────────────────────────────────
 // Usuario intenta comprar una oferta
@@ -10,7 +13,7 @@ const createPurchase = async (req, res, next) => {
 
   // TRANSACCIÓN ATÓMICA: bloquea el row para evitar race conditions
   const transaction = await sequelize.transaction({
-    isolationLevel: sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE
+    isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE
   });
 
   try {
