@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const { connectDB } = require('./config/database');
 const { initSocket } = require('./config/socket');
@@ -11,6 +12,12 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const { reactivateActiveOffers } = require('./services/offerService');
 const { startScheduler } = require('./services/schedulerService');
 
+// ── Asegura que la carpeta uploads exista (si no, Multer falla) ───────────────
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Carpeta uploads/ creada automáticamente');
+}
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 const userAuthRoutes = require('./routes/userAuthRoutes');
@@ -67,6 +74,8 @@ const startServer = async () => {
 
   // 4. Reactivar timers de ofertas activas (por si el servidor se reinició)
   await reactivateActiveOffers();
+
+  // 5. Iniciar scheduler (activa ofertas programadas automáticamente)
   startScheduler();
 };
 
