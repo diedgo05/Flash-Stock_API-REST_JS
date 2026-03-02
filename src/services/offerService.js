@@ -11,56 +11,49 @@ const activeTimers = new Map();
  * Emite el precio actualizado cada 5 segundos por WebSocket.
  * Cuando la oferta termina, limpia todo y emite el evento final.
  */
+
 const startOfferTimer = (offer) => {
   // Evitar timers duplicados
   if (activeTimers.has(offer.id)) {
     console.log(`⚠️ Timer ya existe para oferta ${offer.id}`);
     return;
   }
-
+  
   const INTERVAL_MS = 5000; // Emite precio cada 5 segundos
 
-  const interval = setInterval(async () => {
+const interval = setInterval(async () => {
     try {
-      // Leer estado fresco de la DB (puede haber cambiado stock)
-      const freshOffer = await Offer.findByPk(offer.id);
+        const freshOffer = await Offer.findByPk(offer.id);
+        if (!freshOffer || freshOffer.status !== 'ACTIVE') {
+            stopOfferTimer(offer.id);
+            return;
+        }
 
-      if (!freshOffer || freshOffer.status !== 'ACTIVE') {
-        stopOfferTimer(offer.id);
-        return;
-      }
+        // 1. Calculamos el precio PRIMERO
+        const currentPrice = calculateCurrentPrice(freshOffer);
+        await freshOffer.update({ current_price: currentPrice });
 
-      // Si el tiempo ya pasó, expirar la oferta
-      if (new Date() > new Date(freshOffer.end_time)) {
-        await freshOffer.update({ status: 'EXPIRED' });
-        stopOfferTimer(offer.id);
+        // 2. Obtenemos los viewers
+        const viewerCount = await OfferViewer.count({ where: { offer_id: freshOffer.id } });
 
+        // 3. Emitimos TODO junto con el nombre de evento que Android espera
         const io = getIO();
-        io.to(`offer_${offer.id}`).emit('offer_ended', {
-          offerId: offer.id,
-          reason: 'TIME_UP'
+        io.to(`offer_${offer.id}`).emit('offer_state', {
+            offerId: freshOffer.id,
+            currentPrice: currentPrice,
+            stock: freshOffer.stock,
+            status: freshOffer.status,
+            viewers: viewerCount, // <--- Los ojitos
+            endsAt: freshOffer.end_time,
+            startsAt: freshOffer.start_time
         });
 
-        console.log(`⏰ Oferta ${offer.id} expiró por tiempo`);
-        return;
-      }
-
-      // Calcular y guardar el precio actual
-      const currentPrice = calculateCurrentPrice(freshOffer);
-      await freshOffer.update({ current_price: currentPrice });
-
-      // Emitir a todos los que están viendo esta oferta
-      const io = getIO();
-      io.to(`offer_${offer.id}`).emit('price_update', {
-        offerId: offer.id,
-        currentPrice,
-        stock: freshOffer.stock
-      });
+        console.log(`📡 Broadcast oferta ${offer.id}: $${currentPrice} - 👀 ${viewerCount}`);
 
     } catch (error) {
-      console.error(`❌ Error en timer de oferta ${offer.id}:`, error.message);
+        console.error(`❌ Error en timer:`, error.message);
     }
-  }, INTERVAL_MS);
+}, INTERVAL_MS);
 
   activeTimers.set(offer.id, interval);
   console.log(`▶️ Timer iniciado para oferta: ${offer.id}`);

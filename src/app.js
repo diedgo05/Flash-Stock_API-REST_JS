@@ -66,11 +66,17 @@ const startServer = async () => {
   registerSocketHandlers(io);
 
   // 3. Arrancar el servidor HTTP
-  httpServer.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📡 WebSocket listo en ws://localhost:${PORT}`);
-    console.log(`🌍 Ambiente: ${process.env.NODE_ENV}`);
-  });
+httpServer.listen(PORT, '0.0.0.0', () => {
+  const networkInterfaces = require('os').networkInterfaces();
+  const localIp = Object.values(networkInterfaces)
+    .flat()
+    .find(i => i.family === 'IPv4' && !i.internal)?.address;
+
+  console.log(`Servidor accesible globalmente en tu red:`);
+  console.log(`Local:    http://localhost:${PORT}`);
+  console.log(`Red Wi-Fi: http://${localIp || 'IP_LOCAL'}:${PORT}`);
+  console.log(` Ambiente:  ${process.env.NODE_ENV}`);
+});
 
   // 4. Reactivar timers de ofertas activas (por si el servidor se reinició)
   await reactivateActiveOffers();
